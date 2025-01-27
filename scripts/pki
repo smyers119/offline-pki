@@ -342,7 +342,6 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
 @click_pin(YUBIKEY.ROOT)
 @click.option("--cn", default="Intermediate CA", help="Common name", type=click.STRING)
 @click.option("--org", help="Organization name", type=click.STRING)
-@click.option("--serial", help="Serial number", type=click.INT, prompt="Serial number")
 @click.option(
     "--days",
     default=365,
@@ -350,7 +349,7 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
     type=click.IntRange(min=1),
 )
 def certificate_intermediate(
-    management_key: bytes, pin: str, cn: str, org: str, serial: int, days: int
+    management_key: bytes, pin: str, cn: str, org: str, days: int
 ) -> None:
     """Initialize a new intermediate certificate."""
     with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(SmartCardConnection) as conn:
@@ -384,7 +383,7 @@ def certificate_intermediate(
                 .subject_name(subject)
                 .issuer_name(issuer)
                 .public_key(public_key)
-                .serial_number(serial)
+                .serial_number(x509.random_serial_number())
                 .not_valid_before(datetime.now(timezone.utc))
                 .not_valid_after(datetime.now(timezone.utc) + timedelta(days=days))
             )
