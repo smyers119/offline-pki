@@ -364,6 +364,8 @@ def certificate_intermediate(
         logger.debug("Create intermediate certificate")
         piv = PivSession(conn)
         root = piv.get_certificate(SLOT.SIGNATURE)
+        if root.issuer.rfc4514_string() != root.subject.rfc4514_string():
+            raise RuntimeError("The inserted key does not look like a root Yubikey!")
         issuer = root.subject
         if not org:
             org = str(
