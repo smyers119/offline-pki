@@ -277,9 +277,8 @@ def certificate() -> None:
 
 @certificate.command("root")
 @click_management_key(YUBIKEY.ROOT)
-@click.option("--cn", default="Root CA", help="Common name", type=click.STRING)
 @click.option(
-    "--org", prompt="Organization name", help="Organization name", type=click.STRING
+    "--subject-name", default="CN=Root CA", help="Subject name", type=click.STRING
 )
 @click.option(
     "--days",
@@ -287,22 +286,17 @@ def certificate() -> None:
     help="Root certificate validity in days",
     type=click.IntRange(min=1),
 )
-def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> None:
+def certificate_root(management_key: bytes, subject_name: str, days: int) -> None:
     """Initialize a new root certificate."""
     logger.debug("Generate a new private key")
     private_key = ec.generate_private_key(ec.SECP384R1())
-    subject = issuer = x509.Name(
-        [
-            x509.NameAttribute(NameOID.COMMON_NAME, cn),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, org),
-        ]
-    )
+    subject = x509.Name.from_rfc4514_string(subject_name)
     logger.debug("Generate a new certificate")
     cert = (
         (
             x509.CertificateBuilder()
             .subject_name(subject)
-            .issuer_name(issuer)
+            .issuer_name(subject)
             .public_key(private_key.public_key())
             .serial_number(1)
             .not_valid_before(datetime.now(timezone.utc))
@@ -340,8 +334,12 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
 @certificate.command("intermediate")
 @click_management_key(YUBIKEY.INTERMEDIATE)
 @click_pin(YUBIKEY.ROOT)
-@click.option("--cn", default="Intermediate CA", help="Common name", type=click.STRING)
-@click.option("--org", help="Organization name", type=click.STRING)
+@click.option(
+    "--subject-name",
+    default="CN=Intermediate CA",
+    help="Subject name",
+    type=click.STRING,
+)
 @click.option(
     "--days",
     default=365 * 4,
@@ -349,9 +347,13 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
     type=click.IntRange(min=1),
 )
 def certificate_intermediate(
-    management_key: bytes, pin: str, cn: str, org: str, days: int
+    management_key: bytes, pin: str, subject_name: str, days: int
 ) -> None:
-    """Initialize a new intermediate certificate."""
+    """Initialize a new intermediate certificate.
+
+    If the subject name is missing a field compared to the root certificate,
+    they are copied over.
+    """
     with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(SmartCardConnection) as conn:
         logger.debug("Generate private key for intermediate certificate")
         piv = PivSession(conn)
@@ -366,17 +368,11 @@ def certificate_intermediate(
         if root.issuer.rfc4514_string() != root.subject.rfc4514_string():
             raise RuntimeError("The inserted key does not look like a root Yubikey!")
         issuer = root.subject
-        if not org:
-            org = str(
-                root.subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value
-            )
-            logger.info(f'Using "{org}" for organization name')
-        subject = x509.Name(
-            [
-                x509.NameAttribute(NameOID.COMMON_NAME, cn),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, org),
-            ]
-        )
+        subject = x509.Name.from_rfc4514_string(subject_name)
+        for attribute in root.subject:
+            if attribute.oid not in [attr.oid for attr in subject]:
+                subject = x509.Name([attr for attr in subject] + [attribute])
+        logger.debug(f"Subject name is {subject.rfc4514_string()}")
         cert = (
             (
                 x509.CertificateBuilder()
