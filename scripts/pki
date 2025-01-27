@@ -344,7 +344,7 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
 @click.option("--org", help="Organization name", type=click.STRING)
 @click.option(
     "--days",
-    default=365,
+    default=365 * 4,
     help="Intermediate certificate validity in days",
     type=click.IntRange(min=1),
 )
