@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import sys
 import logging
 import logging.handlers
 import re
+import secrets
+import sys
 import time
 import traceback
-import secrets
 import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -47,9 +47,7 @@ warnings.filterwarnings(
 
 @unique
 class YUBIKEY(StrEnum):
-    ROOT1 = "Root 1"
-    ROOT2 = "Root 2"
-    ROOTX = "Root X"
+    ROOT = "Root X"
     INTERMEDIATE = "Intermediate"
 
 
@@ -229,7 +227,9 @@ def yubikey_info() -> None:
 )
 def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None:
     """Reset the inserted Yubikeys."""
+    found = False
     for nb, di in enumerate(list_all_devices()):
+        found = True
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
         logger.info(f"SN: {info.serial}")
@@ -266,6 +266,8 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
             piv.change_puk(DEFAULT_PUK, new_puk)
             pivman_change_pin(piv, DEFAULT_PIN, new_pin)
         logger.info("Yubikey reset successful!")
+    if not found:
+        raise RuntimeError("No Yubikey found!")
 
 
 @cli.group("certificate")
@@ -274,7 +276,7 @@ def certificate() -> None:
 
 
 @certificate.command("root")
-@click_management_key(YUBIKEY.ROOTX)
+@click_management_key(YUBIKEY.ROOT)
 @click.option("--cn", default="Root CA", help="Common name", type=click.STRING)
 @click.option(
     "--org", prompt="Organization name", help="Organization name", type=click.STRING
@@ -323,19 +325,21 @@ def certificate_root(management_key: bytes, cn: str, org: str, days: int) -> Non
         )
         .sign(private_key, hashes.SHA384())
     )
-    for yk in [YUBIKEY.ROOT1, YUBIKEY.ROOT2]:
-        with yubikey_one(yk).open_connection(SmartCardConnection) as conn:
+    while True:
+        with yubikey_one(YUBIKEY.ROOT).open_connection(SmartCardConnection) as conn:
             piv = PivSession(conn)
             piv.authenticate(management_key)
             piv.put_certificate(SLOT.SIGNATURE, cert, compress=True)
             piv.put_key(
                 SLOT.SIGNATURE, private_key, PIN_POLICY.ONCE, TOUCH_POLICY.NEVER
             )
+        if not click.confirm("Copy root certificate to another Yubikey?"):
+            break
 
 
 @certificate.command("intermediate")
 @click_management_key(YUBIKEY.INTERMEDIATE)
-@click_pin(YUBIKEY.ROOTX)
+@click_pin(YUBIKEY.ROOT)
 @click.option("--cn", default="Intermediate CA", help="Common name", type=click.STRING)
 @click.option("--org", help="Organization name", type=click.STRING)
 @click.option("--serial", help="Serial number", type=click.INT, prompt="Serial number")
@@ -356,7 +360,7 @@ def certificate_intermediate(
         public_key = piv.generate_key(
             SLOT.SIGNATURE, KEY_TYPE.ECCP384, PIN_POLICY.ONCE, TOUCH_POLICY.NEVER
         )
-    with yubikey_one(YUBIKEY.ROOTX).open_connection(SmartCardConnection) as conn:
+    with yubikey_one(YUBIKEY.ROOT).open_connection(SmartCardConnection) as conn:
         logger.debug("Create intermediate certificate")
         piv = PivSession(conn)
         root = piv.get_certificate(SLOT.SIGNATURE)
