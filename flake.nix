@@ -20,7 +20,8 @@
           services.pcscd.enable = true;
           environment.systemPackages = [
             pkgs.yubikey-manager
-            self.packages.${pkgs.system}.pkiScript
+            pkgs.cfssl
+            self.packages.${pkgs.system}.pki
           ];
         };
       })
@@ -42,7 +43,7 @@
       in
       {
         packages = (lib.optionalAttrs (system == "aarch64-linux") {
-          # sdcard for Libre Computer AMLogic card
+          # sdcard for Libre Computer Amlogic card
           sdcard =
             let
               image = lib.nixosSystem {
@@ -71,19 +72,32 @@
               };
             in
             image.config.system.build.sdImage;
-        }) // {
-          resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
-          pkiScript = pkgs.writeShellApplication {
-            inherit runtimeInputs;
-            name = "pki";
-            text = ''
-              exec ${./scripts/pki} "$@"
+        }) // rec {
+          pki = pkgs.stdenvNoCC.mkDerivation {
+            name = "offline-pki";
+            src = ./.;
+            nativeBuildInputs = [
+              pkgs.installShellFiles
+              pkgs.makeWrapper
+            ];
+            buildInputs = runtimeInputs;
+            phases = [ "installPhase" ];
+            installPhase = ''
+              install -D ${./scripts/pki} $out/bin/pki
+              patchShebangs --build $out
+
+              installShellCompletion --cmd pki \
+                --bash <(_PKI_COMPLETE=bash_source "$out/bin/pki") \
+                --zsh  <(_PKI_COMPLETE=zsh_source  "$out/bin/pki") \
+                --fish <(_PKI_COMPLETE=fish_source "$out/bin/pki") \
             '';
           };
+          default = pki;
 
           # QEMU image for development (and only for that!)
-          packages.qemu =
+          qemu =
             let
+              resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
               image = lib.nixosSystem {
                 inherit system;
                 modules = [
@@ -98,12 +112,14 @@
                         "-usb"
                       ] ++ (
                         # Yubikey passthrough
-                        lib.map (id: "-device usb-host,vendorid=0x1050,productid=0x040${toString id}") (lib.range 1 8)
+                        lib.map
+                          (id: "-device usb-host,vendorid=0x1050,productid=0x040${toString id}")
+                          (lib.range 1 8)
                       );
                     };
                     services.getty.autologinUser = "pki";
                     users.users.root.password = ".Linux.";
-                    environment.loginShellInit = "${self.packages.${system}.resizeScript}/bin/resize";
+                    environment.loginShellInit = "${resizeScript}/bin/resize";
                   })
                   self.nixosModules.default
                 ];
@@ -116,7 +132,6 @@
         devShells.default = pkgs.mkShell {
           name = "offline-pki";
           nativeBuildInputs = [
-            self.packages.${system}.pkiScript
             pkgs.cfssl
           ] ++ runtimeInputs;
         };
