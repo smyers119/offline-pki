@@ -20,7 +20,7 @@
           services.pcscd.enable = true;
           environment.systemPackages = [
             pkgs.yubikey-manager
-            pkgs.cfssl
+            pkgs.openssl
             self.packages.${pkgs.system}.pki
           ];
         };
@@ -132,7 +132,7 @@
         devShells.default = pkgs.mkShell {
           name = "offline-pki";
           nativeBuildInputs = [
-            pkgs.cfssl
+            pkgs.openssl
           ] ++ runtimeInputs;
         };
       });
