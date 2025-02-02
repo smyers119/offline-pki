@@ -19,8 +19,9 @@ You need three Yubikeys. Be sure to label them correctly.
  - Intermediate
  
 For each Yubikey, run `pki yubikey reset` to wipe them and configure PIN code,
-PUK code, and management key. The same management key must be used for "Root 1"
-and "Root 2".
+PUK code, and management key. The same management key must be used for all root
+keys. You may use more root keys as backups, as it is not possible to duplicate
+a root key.
 
 Then, execute `pki certificate root` to initialize "Root 1" and "Root 2" (or
 more of them). Then, use `pki certificate intermediate` to initialize
@@ -40,6 +41,10 @@ $ pki certificate intermediate
 
 You can check the result with `pki yubikey info`.
 
+You can do several intermediate CA, one per usage. There is no backup
+intermediate as if it is destroyed or lost, you can just generate a new one
+(clients have to trust the root certificate, not the intermediate ones).
+
 ### CSR signature
 
 The last step is to sign some certificate request with the `pki certificate
@@ -53,14 +58,14 @@ copied over.
 > the content of the CSR before signing it:
 
 ```console
-$ openssl req -x509 \
+$ openssl req \
    -config /dev/null \
    -newkey ec:<(openssl ecparam -name secp384r1) -sha384 -nodes \
    -subj "/C=FR/O=Example SARL/OU=Network/CN=ipsec-gw1.example.com" \
    -addext "subjectAltName = DNS:ipsec-gw.example.com" \
    -addext "keyUsage = digitalSignature" \
    -keyform PEM -keyout server-key.pem -outform PEM -out server-csr.pem
-$ openssl x509 -noout -text -in server-csr.pem
+$ openssl req -noout -text -in server-csr.pem
 ```
 
 ## Limitations
