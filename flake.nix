@@ -13,10 +13,6 @@
         nixosModules.default = { pkgs, ... }: {
           system.stateVersion = "24.11";
           networking.hostName = "offline-pki";
-          users.users.pki = {
-            isNormalUser = true;
-            description = "PKI user";
-          };
           services.pcscd.enable = true;
           environment.systemPackages = [
             pkgs.yubikey-manager
@@ -52,6 +48,7 @@
                   "${nixpkgs}/nixos/modules/profiles/minimal.nix"
                   "${nixpkgs}/nixos/modules/installer/sd-card/sd-image.nix"
                   ({ config, ... }: {
+                    # This is a reduced version of sd-image-aarch64
                     boot.loader.grub.enable = false;
                     boot.loader.generic-extlinux-compatible.enable = true;
                     boot.consoleLogLevel = lib.mkDefault 7;
@@ -67,6 +64,14 @@
                     # For Amlogic boards, the console is on ttyAML0.
                     boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
                   })
+                  {
+                    # Create a PKI user with autologin
+                    users.users.pki = {
+                      isNormalUser = true;
+                      description = "PKI user";
+                    };
+                    services.getty.autologinUser = "pki";
+                  }
                   self.nixosModules.default
                 ];
               };
