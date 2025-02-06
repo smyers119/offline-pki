@@ -45,7 +45,6 @@
             [
               click
               cryptography
-              ipython
               pkgs.yubikey-manager
             ]))
         ];
