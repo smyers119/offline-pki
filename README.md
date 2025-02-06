@@ -97,7 +97,7 @@ Maps][] for Libre Computer boards. For the AML-S905X-CC-V2, 1 (at the edge) is
 GND, 2 is TX and 3 is RX. When using a USB to TTL adapter, you need to swap RX
 and TX.
 
-The default speed is 115200.
+The default speed is 115200. A good small serial tool is `tio`.
 
 [gpio pinout header maps]: https://hub.libre.computer/t/gpio-pinout-header-maps-and-wiring-tool-for-libre-computer-boards/28
 
