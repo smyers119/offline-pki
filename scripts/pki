@@ -69,7 +69,7 @@ class CustomFormatter(logging.Formatter):
 
         if relevant_frame:
             return f" On line {relevant_frame.lineno}: {relevant_frame.line}"
-        return super.formatException(self, exc_info)
+        return super().formatException(self, exc_info)
 
 
 def validate_pin(ctx, param, value):
