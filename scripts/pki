@@ -10,7 +10,6 @@ import traceback
 import typing
 import warnings
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from enum import StrEnum, unique
 
 import click
@@ -55,21 +54,17 @@ class YUBIKEY(StrEnum):
 class CustomFormatter(logging.Formatter):
     def formatException(self, exc_info):
         exc_type, exc_value, tb = exc_info
-        script_dir = Path(__file__).parent
 
         # Find the frame from our code
         relevant_frame = None
         for frame in traceback.extract_tb(tb):
-            frame_path = Path(frame.filename)
-            try:
-                frame_path.relative_to(script_dir)
+            if frame.filename == __file__:
                 relevant_frame = frame
-            except ValueError:
-                continue
+                break
+        else:
+            return super().formatException(self, exc_info)
 
-        if relevant_frame:
-            return f" On line {relevant_frame.lineno}: {relevant_frame.line}"
-        return super().formatException(self, exc_info)
+        return f" On line {relevant_frame.lineno}: {relevant_frame.line}"
 
 
 def validate_pin(ctx, param, value):
