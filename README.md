@@ -90,7 +90,19 @@ To flash it:
 zstdcat result/sd-image/nixos-sd-image-*-aarch64-linux.img.zst > /dev/sdc
 ```
 
+### Serial console
+
+You can get a serial console using the UART header. See [GPIO Pinout Header
+Maps][] for Libre Computer boards. For the AML-S905X-CC-V2, 1 (at the edge) is
+GND, 2 is TX and 3 is RX. When using a USB to TTL adapter, you need to swap RX
+and TX.
+
+The default speed is 115200.
+
+[gpio pinout header maps]: https://hub.libre.computer/t/gpio-pinout-header-maps-and-wiring-tool-for-libre-computer-boards/28
+
 ## Development
 
 For development, one can either invoke a Nix shell with `nix develop` or spawn a
 QEMU VM with `nix run .\#qemu`.
+
