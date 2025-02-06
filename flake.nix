@@ -20,6 +20,19 @@
             self.packages.${pkgs.system}.pki
           ];
         };
+        nixosModules.pki-user = { pkgs, ... }:
+          let
+            resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
+          in
+          {
+            users.users.pki = {
+              isNormalUser = true;
+              description = "PKI user";
+            };
+            services.getty.autologinUser = "pki";
+            environment.loginShellInit = "${resizeScript}/bin/resize";
+
+          };
       })
     // flake-utils.lib.eachDefaultSystem (system:
       let
@@ -64,15 +77,8 @@
                     # For Amlogic boards, the console is on ttyAML0.
                     boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
                   })
-                  {
-                    # Create a PKI user with autologin
-                    users.users.pki = {
-                      isNormalUser = true;
-                      description = "PKI user";
-                    };
-                    services.getty.autologinUser = "pki";
-                  }
                   self.nixosModules.default
+                  self.nixosModules.pki-user
                 ];
               };
             in
@@ -102,7 +108,6 @@
           # QEMU image for development (and only for that!)
           qemu =
             let
-              resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
               image = lib.nixosSystem {
                 inherit system;
                 modules = [
@@ -122,11 +127,10 @@
                           (lib.range 1 8)
                       );
                     };
-                    services.getty.autologinUser = "pki";
                     users.users.root.password = ".Linux.";
-                    environment.loginShellInit = "${resizeScript}/bin/resize";
                   })
                   self.nixosModules.default
+                  self.nixosModules.pki-user
                 ];
               };
             in
