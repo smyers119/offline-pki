@@ -240,17 +240,19 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
             mgt.write_device_config(config, True, None, None)
         logger.debug("Wait a bit for Yubikey to reboot")
         for retry in reversed(range(5)):
-            time.sleep(1)
-            for _, di2 in enumerate(list_all_devices()):
-                device2, info2 = di2
-                if info2.serial == info.serial:
-                    device = device2
-                    break
-            else:
-                if retry > 0:
-                    continue
-                raise RuntimeError("no Yubikey found")
-            break
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="Failed opening device")
+                time.sleep(1)
+                for _, di2 in enumerate(list_all_devices()):
+                    device2, info2 = di2
+                    if info2.serial == info.serial:
+                        device = device2
+                        break
+                else:
+                    if retry > 0:
+                        continue
+                    raise RuntimeError("no Yubikey found")
+                break
         with device.open_connection(SmartCardConnection) as conn:
             piv = PivSession(conn)
             logger.debug("Reset PIV application")
