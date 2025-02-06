@@ -76,6 +76,8 @@
                     };
                     # For Amlogic boards, the console is on ttyAML0.
                     boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
+                    # No need for firmwares (enabled by sd-image.nix)
+                    hardware.enableRedistributableFirmware = lib.mkForce false;
                   })
                   self.nixosModules.default
                   self.nixosModules.pki-user

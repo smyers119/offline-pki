@@ -78,7 +78,7 @@ There are several limitations with this little PKI:
 
 ## Image creation
 
-To build the SD card image:
+To build the SD card image (targeted for the Sweet Potato):
 
 ```shell
 nix build --system aarch64-linux .\#sdcard
