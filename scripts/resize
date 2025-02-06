@@ -7,5 +7,5 @@ if [ -e /dev/tty ]; then
   printf '\033[18t' > /dev/tty
   IFS=';t' read -r _ rows cols _ < /dev/tty
   stty "$old"
-  stty cols "$cols" rows "$rows"
+  [ -z "$cols" ] || [ -z "$rows" ] || stty cols "$cols" rows "$rows"
 fi
