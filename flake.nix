@@ -22,12 +22,22 @@
               pkgs.openssl
               self.packages.${pkgs.system}.pki
             ];
+
+            # PKI user and autologin
             users.users.pki = {
               isNormalUser = true;
               description = "PKI user";
             };
             services.getty.autologinUser = "pki";
             environment.loginShellInit = "${resizeScript}/bin/resize";
+
+            # "Immutable" system
+            users.mutableUsers = false;
+            fileSystems."/" = {
+              device = "none";
+              fsType = "tmpfs";
+              options = [ "defaults" "size=50%" "mode=755" ];
+            };
           };
       })
     // flake-utils.lib.eachDefaultSystem (system:
@@ -75,7 +85,6 @@
                     hardware.enableRedistributableFirmware = lib.mkForce false;
                   })
                   self.nixosModules.default
-                  self.nixosModules.pki-user
                 ];
               };
             in
@@ -123,11 +132,11 @@
                           (id: "-device usb-host,vendorid=0x1050,productid=0x040${toString id}")
                           (lib.range 1 8)
                       );
+                      fileSystems = lib.mkForce { };
                     };
                     users.users.root.password = ".Linux.";
                   })
                   self.nixosModules.default
-                  self.nixosModules.pki-user
                 ];
               };
             in
@@ -135,11 +144,12 @@
         };
 
         # Development shell
-        devShells.default = pkgs.mkShell {
-          name = "offline-pki";
-          nativeBuildInputs = [
-            pkgs.openssl
-          ] ++ runtimeInputs;
-        };
+        devShells.default = pkgs.mkShell
+          {
+            name = "offline-pki";
+            nativeBuildInputs = [
+              pkgs.openssl
+            ] ++ runtimeInputs;
+          };
       });
 }
