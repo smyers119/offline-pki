@@ -1,9 +1,10 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+    impermanence.url = "github:nix-community/impermanence";
     flake-utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, impermanence }:
     let
       lib = nixpkgs.lib;
     in
@@ -31,6 +32,16 @@
             };
             services.getty.autologinUser = "pki";
             environment.loginShellInit = "${resizeScript}/bin/resize";
+
+            # Impermanence (without any persistence)
+            imports = [
+              impermanence.nixosModules.impermanence
+            ];
+            fileSystems."/" = {
+              device = "none";
+              fsType = "tmpfs";
+              options = [ "defaults" "size=25%" "mode=755" ];
+            };
           };
       })
     // flake-utils.lib.eachDefaultSystem (system:
