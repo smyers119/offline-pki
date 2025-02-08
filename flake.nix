@@ -9,29 +9,25 @@
     in
     flake-utils.lib.eachDefaultSystemPassThrough
       (system: {
-        # NixOS module for PKI
-        nixosModules.default = { pkgs, ... }: {
-          system.stateVersion = "24.11";
-          networking.hostName = "offline-pki";
-          services.pcscd.enable = true;
-          environment.systemPackages = [
-            pkgs.yubikey-manager
-            pkgs.openssl
-            self.packages.${pkgs.system}.pki
-          ];
-        };
-        nixosModules.pki-user = { pkgs, ... }:
+        nixosModules.default = { pkgs, ... }:
           let
             resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
           in
           {
+            system.stateVersion = "24.11";
+            networking.hostName = "offline-pki";
+            services.pcscd.enable = true;
+            environment.systemPackages = [
+              pkgs.yubikey-manager
+              pkgs.openssl
+              self.packages.${pkgs.system}.pki
+            ];
             users.users.pki = {
               isNormalUser = true;
               description = "PKI user";
             };
             services.getty.autologinUser = "pki";
             environment.loginShellInit = "${resizeScript}/bin/resize";
-
           };
       })
     // flake-utils.lib.eachDefaultSystem (system:
