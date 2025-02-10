@@ -29,7 +29,7 @@ class CustomFormatter(logging.Formatter):
 
 @click.group()
 @click.option("--debug", is_flag=True, default=False)
-def cli(debug: bool) -> None:
+def cli(debug: bool) -> int:
     """Simple offline PKI using Yubikeys as HSM.
 
     This program is a very barebone PKI for offline certificates. It requires at
@@ -53,7 +53,7 @@ cli.add_command(certificate)
 
 def main():
     try:
-        cli(prog_name="offline-pki")
+        return cli(prog_name="offline-pki")
     except Exception as e:
         logger.exception("%s", e)
-        sys.exit(0)
+        sys.exit(1)
