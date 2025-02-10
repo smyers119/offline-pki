@@ -231,6 +231,8 @@ def certificate_sign(
             csr.signature_hash_algorithm,
         )
     elif isinstance(public_key, d.ec.EllipticCurvePublicKey):
+        if csr.signature_hash_algorithm is None:
+            raise ValueError("No hash algorithm in CSR")
         public_key.verify(
             csr.signature,
             csr.tbs_certrequest_bytes,
