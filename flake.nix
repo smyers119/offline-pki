@@ -12,7 +12,18 @@
       (system: {
         nixosModules.default = { pkgs, ... }:
           let
-            resizeScript = pkgs.writeShellScriptBin "resize" ./scripts/resize;
+            resizeScript = pkgs.writeShellScriptBin "resize" ''
+              # Shell version of xterm's resize tool.
+
+              if [ -e /dev/tty ]; then
+                old=$(stty -g)
+                stty raw -echo min 0 time 5
+                printf '\033[18t' > /dev/tty
+                IFS=';t' read -r _ rows cols _ < /dev/tty
+                stty "$old"
+                [ -z "$cols" ] || [ -z "$rows" ] || stty cols "$cols" rows "$rows"
+              fi
+            '';
           in
           {
             system.stateVersion = "24.11";
