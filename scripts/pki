@@ -11,28 +11,10 @@ import typing
 import warnings
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum, unique
+from types import SimpleNamespace
 
 import click
-
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
 from cryptography.utils import CryptographyDeprecationWarning
-
-from ykman.device import list_all_devices
-from ykman.piv import pivman_change_pin, pivman_set_mgm_key, sign_certificate_builder
-from yubikit.core import TRANSPORT
-from yubikit.core.smartcard import SmartCardConnection
-from yubikit.management import ManagementSession, DeviceConfig, CAPABILITY
-from yubikit.piv import (
-    PivSession,
-    SLOT,
-    MANAGEMENT_KEY_TYPE,
-    PIN_POLICY,
-    TOUCH_POLICY,
-    KEY_TYPE,
-)
 
 
 DEFAULT_PIN = "123456"
@@ -67,6 +49,44 @@ class CustomFormatter(logging.Formatter):
         return f" On line {relevant_frame.lineno}: {relevant_frame.line}"
 
 
+class M:
+    """Lazy loading of some modules."""
+
+    @property
+    def yk(self) -> SimpleNamespace:
+        from ykman.device import list_all_devices
+        from ykman.piv import (
+            pivman_change_pin,
+            pivman_set_mgm_key,
+            sign_certificate_builder,
+        )
+        from yubikit.core import TRANSPORT
+        from yubikit.core.smartcard import SmartCardConnection
+        from yubikit.management import ManagementSession, DeviceConfig, CAPABILITY
+        from yubikit.piv import (
+            PivSession,
+            SLOT,
+            MANAGEMENT_KEY_TYPE,
+            PIN_POLICY,
+            TOUCH_POLICY,
+            KEY_TYPE,
+        )
+
+        return SimpleNamespace(**locals())
+
+    @property
+    def cryptography(self) -> SimpleNamespace:
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
+
+        return SimpleNamespace(**locals())
+
+
+m = M()
+
+
 def validate_pin(ctx, param, value):
     if not re.match(r"[0-9]{6,8}", value):
         raise click.BadParameter("PIN should be 6 to 8 numeric string")
@@ -99,7 +119,7 @@ def validate_management_key(ctx, param, val):
 def yubikey_one(yk: YUBIKEY):
     """Get exactly one Yubikey."""
     click.pause(f'Plug Yubikey "{yk}"...')
-    devices = list(list_all_devices())
+    devices = list(m.yk.list_all_devices())
     for nb, di in enumerate(devices):
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
@@ -143,7 +163,7 @@ def cli(debug: bool) -> None:
     "ROOT2", as a backup) and the intermediate certificate (on "INTERMEDIATE").
 
     The features are quite limited as it only provides root CA and intermediate
-    CA creation, CRL generation for each of them, and certificate signing.
+    CA creation, CRL gene ration for each of them, and certificate signing.
     """
     root = logging.getLogger("")
     root.setLevel(logging.INFO)
@@ -161,16 +181,16 @@ def yubikey() -> None:
 @yubikey.command("info")
 def yubikey_info() -> None:
     """Display information about the inserted Yubikeys."""
-    for nb, di in enumerate(list_all_devices()):
+    for nb, di in enumerate(m.yk.list_all_devices()):
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
         logger.info(f"SN: {info.serial}")
-        with device.open_connection(SmartCardConnection) as conn:
-            piv = PivSession(conn)
-            data = piv.get_slot_metadata(SLOT.SIGNATURE)
-            logger.info(f"Slot {SLOT.SIGNATURE}:")
+        with device.open_connection(m.yk.SmartCardConnection) as conn:
+            piv = m.yk.PivSession(conn)
+            data = piv.get_slot_metadata(m.yk.SLOT.SIGNATURE)
+            logger.info(f"Slot {m.yk.SLOT.SIGNATURE}:")
             logger.info(f"  Private key type: {data.key_type}")
-            cert = piv.get_certificate(SLOT.SIGNATURE)
+            cert = piv.get_certificate(m.yk.SLOT.SIGNATURE)
             pkey = data.public_key
             algorithm = pkey.curve.name
             issuer = cert.issuer.rfc4514_string()
@@ -178,9 +198,9 @@ def yubikey_info() -> None:
             serial = cert.serial_number
             not_before = cert.not_valid_before_utc.isoformat()
             not_after = cert.not_valid_after_utc.isoformat()
-            pem_data = cert.public_bytes(encoding=serialization.Encoding.PEM).decode(
-                "utf-8"
-            )
+            pem_data = cert.public_bytes(
+                encoding=m.cryptography.serialization.Encoding.PEM
+            ).decode("utf-8")
             logger.info("  Public key: ")
             logger.info(f"    Algorithm:  {algorithm}")
             logger.info(f"    Issuer:     {issuer}")
@@ -224,18 +244,18 @@ def yubikey_info() -> None:
 def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None:
     """Reset the inserted Yubikeys."""
     found = False
-    for nb, di in enumerate(list_all_devices()):
+    for nb, di in enumerate(m.yk.list_all_devices()):
         found = True
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
         logger.info(f"SN: {info.serial}")
-        with device.open_connection(SmartCardConnection) as conn:
-            mgt = ManagementSession(conn)
+        with device.open_connection(m.yk.SmartCardConnection) as conn:
+            mgt = m.yk.ManagementSession(conn)
             logger.debug("Only enable PIV application")
-            config = DeviceConfig({}, None, None, None)
+            config = m.yk.DeviceConfig({}, None, None, None)
             config.enabled_capabilities = {
-                TRANSPORT.NFC: CAPABILITY(0),
-                TRANSPORT.USB: CAPABILITY.PIV,
+                m.yk.TRANSPORT.NFC: m.yk.CAPABILITY(0),
+                m.yk.TRANSPORT.USB: m.yk.CAPABILITY.PIV,
             }
             mgt.write_device_config(config, True, None, None)
         logger.debug("Wait a bit for Yubikey to reboot")
@@ -243,7 +263,7 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="Failed opening device")
                 time.sleep(1)
-                for _, di2 in enumerate(list_all_devices()):
+                for _, di2 in enumerate(m.yk.list_all_devices()):
                     device2, info2 = di2
                     if info2.serial == info.serial:
                         device = device2
@@ -253,16 +273,18 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
                         continue
                     raise RuntimeError("no Yubikey found")
                 break
-        with device.open_connection(SmartCardConnection) as conn:
-            piv = PivSession(conn)
+        with device.open_connection(m.yk.SmartCardConnection) as conn:
+            piv = m.yk.PivSession(conn)
             logger.debug("Reset PIV application")
             piv.reset()
             logger.debug("Set management key")
             piv.authenticate(DEFAULT_MANAGEMENT)
-            pivman_set_mgm_key(piv, new_management_key, MANAGEMENT_KEY_TYPE.AES256)
+            m.yk.pivman_set_mgm_key(
+                piv, new_management_key, m.yk.MANAGEMENT_KEY_TYPE.AES256
+            )
             logger.debug("Set PIN and PUK code")
             piv.change_puk(DEFAULT_PUK, new_puk)
-            pivman_change_pin(piv, DEFAULT_PIN, new_pin)
+            m.yk.pivman_change_pin(piv, DEFAULT_PIN, new_pin)
         logger.info("Yubikey reset successful!")
     if not found:
         raise RuntimeError("No Yubikey found!")
@@ -287,12 +309,12 @@ def certificate() -> None:
 def certificate_root(management_key: bytes, subject_name: str, days: int) -> None:
     """Initialize a new root certificate."""
     logger.debug("Generate a new private key")
-    private_key = ec.generate_private_key(ec.SECP384R1())
-    subject = x509.Name.from_rfc4514_string(subject_name)
+    private_key = m.cryptography.ec.generate_private_key(m.cryptography.ec.SECP384R1())
+    subject = m.cryptography.x509.Name.from_rfc4514_string(subject_name)
     logger.debug("Generate a new certificate")
     cert = (
         (
-            x509.CertificateBuilder()
+            m.cryptography.x509.CertificateBuilder()
             .subject_name(subject)
             .issuer_name(subject)
             .public_key(private_key.public_key())
@@ -300,9 +322,12 @@ def certificate_root(management_key: bytes, subject_name: str, days: int) -> Non
             .not_valid_before(datetime.now(timezone.utc))
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=days))
         )
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
         .add_extension(
-            x509.KeyUsage(
+            m.cryptography.x509.BasicConstraints(ca=True, path_length=None),
+            critical=True,
+        )
+        .add_extension(
+            m.cryptography.x509.KeyUsage(
                 digital_signature=True,
                 content_commitment=False,
                 key_encipherment=False,
@@ -315,15 +340,20 @@ def certificate_root(management_key: bytes, subject_name: str, days: int) -> Non
             ),
             critical=True,
         )
-        .sign(private_key, hashes.SHA384())
+        .sign(private_key, m.cryptography.hashes.SHA384())
     )
     while True:
-        with yubikey_one(YUBIKEY.ROOT).open_connection(SmartCardConnection) as conn:
-            piv = PivSession(conn)
+        with yubikey_one(YUBIKEY.ROOT).open_connection(
+            m.yk.SmartCardConnection
+        ) as conn:
+            piv = m.yk.PivSession(conn)
             piv.authenticate(management_key)
-            piv.put_certificate(SLOT.SIGNATURE, cert, compress=True)
+            piv.put_certificate(m.yk.SLOT.SIGNATURE, cert, compress=True)
             piv.put_key(
-                SLOT.SIGNATURE, private_key, PIN_POLICY.ONCE, TOUCH_POLICY.NEVER
+                m.yk.SLOT.SIGNATURE,
+                private_key,
+                m.yk.PIN_POLICY.ONCE,
+                m.yk.TOUCH_POLICY.NEVER,
             )
         if not click.confirm("Copy root certificate to another Yubikey?"):
             break
@@ -352,43 +382,49 @@ def certificate_intermediate(
     If the subject name is missing an attribute compared to the root certificate,
     they are copied over.
     """
-    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(SmartCardConnection) as conn:
+    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(
+        m.yk.SmartCardConnection
+    ) as conn:
         logger.debug("Generate private key for intermediate certificate")
-        piv = PivSession(conn)
+        piv = m.yk.PivSession(conn)
         piv.authenticate(management_key)
         public_key = piv.generate_key(
-            SLOT.SIGNATURE, KEY_TYPE.ECCP384, PIN_POLICY.ONCE, TOUCH_POLICY.NEVER
+            m.yk.SLOT.SIGNATURE,
+            m.yk.KEY_TYPE.ECCP384,
+            m.yk.PIN_POLICY.ONCE,
+            m.yk.TOUCH_POLICY.NEVER,
         )
-    with yubikey_one(YUBIKEY.ROOT).open_connection(SmartCardConnection) as conn:
+    with yubikey_one(YUBIKEY.ROOT).open_connection(m.yk.SmartCardConnection) as conn:
         logger.debug("Create intermediate certificate")
-        piv = PivSession(conn)
-        root = piv.get_certificate(SLOT.SIGNATURE)
+        piv = m.yk.PivSession(conn)
+        root = piv.get_certificate(m.yk.SLOT.SIGNATURE)
         if root.issuer.rfc4514_string() != root.subject.rfc4514_string():
             raise RuntimeError("The inserted key does not look like a root Yubikey!")
         issuer = root.subject
-        subject = x509.Name.from_rfc4514_string(subject_name)
+        subject = m.cryptography.x509.Name.from_rfc4514_string(subject_name)
         missing = [
             attribute
             for attribute in issuer
             if attribute.oid not in [attr.oid for attr in subject]
         ]
-        subject = x509.Name(missing + [attr for attr in subject])
+        subject = m.cryptography.x509.Name(missing + [attr for attr in subject])
         logger.debug(f"Subject name is {subject.rfc4514_string()}")
         cert = (
             (
-                x509.CertificateBuilder()
+                m.cryptography.x509.CertificateBuilder()
                 .subject_name(subject)
                 .issuer_name(issuer)
                 .public_key(public_key)
-                .serial_number(x509.random_serial_number())
+                .serial_number(m.cryptography.x509.random_serial_number())
                 .not_valid_before(datetime.now(timezone.utc))
                 .not_valid_after(datetime.now(timezone.utc) + timedelta(days=days))
             )
             .add_extension(
-                x509.BasicConstraints(ca=True, path_length=None), critical=True
+                m.cryptography.x509.BasicConstraints(ca=True, path_length=None),
+                critical=True,
             )
             .add_extension(
-                x509.KeyUsage(
+                m.cryptography.x509.KeyUsage(
                     digital_signature=True,
                     content_commitment=False,
                     key_encipherment=False,
@@ -403,18 +439,20 @@ def certificate_intermediate(
             )
         )
         piv.verify_pin(pin)
-        signed_cert = sign_certificate_builder(
+        signed_cert = m.yk.sign_certificate_builder(
             piv,
-            slot=SLOT.SIGNATURE,
-            key_type=KEY_TYPE.ECCP384,
+            slot=m.yk.SLOT.SIGNATURE,
+            key_type=m.yk.KEY_TYPE.ECCP384,
             builder=cert,
-            hash_algorithm=hashes.SHA384,
+            hash_algorithm=m.cryptography.hashes.SHA384,
         )
-    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(SmartCardConnection) as conn:
+    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(
+        m.yk.SmartCardConnection
+    ) as conn:
         logger.debug("Store certificate")
-        piv = PivSession(conn)
+        piv = m.yk.PivSession(conn)
         piv.authenticate(management_key)
-        piv.put_certificate(SLOT.SIGNATURE, signed_cert, compress=True)
+        piv.put_certificate(m.yk.SLOT.SIGNATURE, signed_cert, compress=True)
 
 
 @certificate.command("sign")
@@ -451,30 +489,32 @@ def certificate_sign(
     If no subject name is provided, the one from the CSR is used.
     """
     logger.debug("load CSR file and check signature")
-    csr = x509.load_pem_x509_csr(csr_file.read().encode("ascii"))
+    csr = m.cryptography.x509.load_pem_x509_csr(csr_file.read().encode("ascii"))
     public_key = csr.public_key()
     if (
-        isinstance(public_key, rsa.RSAPublicKey)
+        isinstance(public_key, m.cryptography.rsa.RSAPublicKey)
         and csr.signature_hash_algorithm is not None
     ):
         public_key.verify(
             csr.signature,
             csr.tbs_certrequest_bytes,
-            padding.PKCS1v15(),
+            m.cryptography.padding.PKCS1v15(),
             csr.signature_hash_algorithm,
         )
-    elif isinstance(public_key, ec.EllipticCurvePublicKey):
+    elif isinstance(public_key, m.cryptography.ec.EllipticCurvePublicKey):
         public_key.verify(
             csr.signature,
             csr.tbs_certrequest_bytes,
-            ec.ECDSA(csr.signature_hash_algorithm),
+            m.cryptography.ec.ECDSA(csr.signature_hash_algorithm),
         )
     else:
         raise ValueError(f"unsupported public key {public_key}")
 
-    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(SmartCardConnection) as conn:
-        piv = PivSession(conn)
-        intermediate = piv.get_certificate(SLOT.SIGNATURE)
+    with yubikey_one(YUBIKEY.INTERMEDIATE).open_connection(
+        m.yk.SmartCardConnection
+    ) as conn:
+        piv = m.yk.PivSession(conn)
+        intermediate = piv.get_certificate(m.yk.SLOT.SIGNATURE)
         if (
             intermediate.issuer.rfc4514_string()
             == intermediate.subject.rfc4514_string()
@@ -488,20 +528,20 @@ def certificate_sign(
         if not subject_name:
             subject = csr.subject
         else:
-            subject = x509.Name.from_rfc4514_string(subject_name)
+            subject = m.cryptography.x509.Name.from_rfc4514_string(subject_name)
             missing = [
                 attribute
                 for attribute in issuer
                 if attribute.oid not in [attr.oid for attr in subject]
             ]
-            subject = x509.Name(missing + [attr for attr in subject])
+            subject = m.cryptography.x509.Name(missing + [attr for attr in subject])
         logger.info(f"Subject name is {subject.rfc4514_string()}")
         cert = (
-            x509.CertificateBuilder()
+            m.cryptography.x509.CertificateBuilder()
             .subject_name(subject)
             .issuer_name(issuer)
             .public_key(public_key)
-            .serial_number(x509.random_serial_number())
+            .serial_number(m.cryptography.x509.random_serial_number())
             .not_valid_before(datetime.now(timezone.utc))
             .not_valid_after(datetime.now(timezone.utc) + timedelta(days=days))
         )
@@ -513,17 +553,17 @@ def certificate_sign(
         click.confirm("Sign this certificate?", abort=True)
 
         piv.verify_pin(pin)
-        signed_cert = sign_certificate_builder(
+        signed_cert = m.yk.sign_certificate_builder(
             piv,
-            slot=SLOT.SIGNATURE,
-            key_type=KEY_TYPE.ECCP384,
+            slot=m.yk.SLOT.SIGNATURE,
+            key_type=m.yk.KEY_TYPE.ECCP384,
             builder=cert,
-            hash_algorithm=hashes.SHA384,
+            hash_algorithm=m.cryptography.hashes.SHA384,
         )
         out_file.write(
-            signed_cert.public_bytes(encoding=serialization.Encoding.PEM).decode(
-                "ascii"
-            )
+            signed_cert.public_bytes(
+                encoding=m.cryptography.serialization.Encoding.PEM
+            ).decode("ascii")
         )
 
 
