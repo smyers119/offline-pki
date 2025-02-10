@@ -57,3 +57,7 @@ def main():
     except Exception as e:
         logger.exception("%s", e)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
