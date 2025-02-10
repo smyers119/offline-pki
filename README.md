@@ -8,6 +8,51 @@ run from an ARM64 SBC, like the [Sweet Potato AML-S905X-CC-V2][potato].
 > [!CAUTION]
 > This is a work in progress. Do not use yet!
 
+## Installation
+
+### With Nix
+
+This repository can be used as a Flake.
+
+- `nix shell`
+- `nix run . -- --help`
+- `nix run github:vincentbernat/offline-pki -- --help`
+
+### Without Nix
+
+Create a virtualenv and execute `pip install`:
+
+```console
+$ python -m venv .venv
+$ source .venv/bin/active
+$ pip install .
+```
+
+You may need `libpcsclite-dev` package.
+
+### Image creation
+
+To build the SD card image (targeted for the Sweet Potato):
+
+```shell
+nix build --system aarch64-linux .\#sdcard
+```
+
+To flash it:
+
+```shell
+zstdcat result/sd-image/nixos-sd-image-*-aarch64-linux.img.zst > /dev/sdc
+```
+
+You can get a serial console using the UART header. See [GPIO Pinout Header
+Maps][] for Libre Computer boards. For the AML-S905X-CC-V2, 1 (at the edge) is
+GND, 2 is TX and 3 is RX. When using a USB to TTL adapter, you need to swap RX
+and TX.
+
+The default speed is 115200. A good small serial tool is `tio`.
+
+[gpio pinout header maps]: https://hub.libre.computer/t/gpio-pinout-header-maps-and-wiring-tool-for-libre-computer-boards/28
+
 ## Operations
 
 ### CA creation
@@ -75,31 +120,6 @@ There are several limitations with this little PKI:
 - not everything is configurable, notably the cryptography is hard-coded
 - no CRL support (this is an offline PKI, while not impossible, this would be a pain)
 - random serial numbers (no state is kept, except the certificates on the Yubikeys)
-
-## Image creation
-
-To build the SD card image (targeted for the Sweet Potato):
-
-```shell
-nix build --system aarch64-linux .\#sdcard
-```
-
-To flash it:
-
-```shell
-zstdcat result/sd-image/nixos-sd-image-*-aarch64-linux.img.zst > /dev/sdc
-```
-
-### Serial console
-
-You can get a serial console using the UART header. See [GPIO Pinout Header
-Maps][] for Libre Computer boards. For the AML-S905X-CC-V2, 1 (at the edge) is
-GND, 2 is TX and 3 is RX. When using a USB to TTL adapter, you need to swap RX
-and TX.
-
-The default speed is 115200. A good small serial tool is `tio`.
-
-[gpio pinout header maps]: https://hub.libre.computer/t/gpio-pinout-header-maps-and-wiring-tool-for-libre-computer-boards/28
 
 ## Development
 
