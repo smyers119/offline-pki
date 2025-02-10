@@ -18,28 +18,28 @@ You need three Yubikeys. Be sure to label them correctly.
  - Root 2
  - Intermediate
  
-For each Yubikey, run `pki yubikey reset` to wipe them and configure PIN code,
+For each Yubikey, run `offline-pki yubikey reset` to wipe them and configure PIN code,
 PUK code, and management key. The same management key must be used for all root
 keys. You may use more root keys as backups, as it is not possible to duplicate
 a root key.
 
-Then, execute `pki certificate root` to initialize "Root 1" and "Root 2" (or
-more of them). Then, use `pki certificate intermediate` to initialize
+Then, execute `offline-pki certificate root` to initialize "Root 1" and "Root 2" (or
+more of them). Then, use `offline-pki certificate intermediate` to initialize
 "Intermediate".
 
 For the root certificate, you can customize the subject name with the
-`--subject-name` flag. The `pki certificate intermediate` command also accepts a
+`--subject-name` flag. The `offline-pki certificate intermediate` command also accepts a
 subject-name (`CN=Intermediate CA` by default) and it will merge the missing
 attributes from the root certificate. Therefore, by using the following
 commands, the intermediate certificate will have `CN=Intermediate CA,O=Your
 Organization,OU=Secret Unit,C=FR` as a subject name.
 
 ```console
-$ pki certificate root --subject-name "CN=Root CA,O=Your Organization,OU=Secret Unit,C=FR"
-$ pki certificate intermediate
+$ offline-pki certificate root --subject-name "CN=Root CA,O=Your Organization,OU=Secret Unit,C=FR"
+$ offline-pki certificate intermediate
 ```
 
-You can check the result with `pki yubikey info`.
+You can check the result with `offline-pki yubikey info`.
 
 You can do several intermediate CA, one per usage. There is no backup
 intermediate as if it is destroyed or lost, you can just generate a new one
@@ -47,7 +47,7 @@ intermediate as if it is destroyed or lost, you can just generate a new one
 
 ### CSR signature
 
-The last step is to sign some certificate request with the `pki certificate
+The last step is to sign some certificate request with the `offline-pki certificate
 sign`. You can override the subject name with `--subject-name` and in this case,
 the missing attributes are copied from the intermediate certificate. Otherwise,
 the subject name from the CSR is used. Moreover, all extensions from the CSR are

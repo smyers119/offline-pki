@@ -1,0 +1,21 @@
+[project]
+name = "offline-pki"
+version = "0.1.0"
+description = "Offline PKI using Yubikeys as HSM"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "click",
+  "cryptography",
+  "yubikey-manager",
+]
+
+[project.scripts]
+offline-pki = "pki.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pki"]

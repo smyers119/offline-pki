@@ -32,7 +32,7 @@
             environment.systemPackages = [
               pkgs.yubikey-manager
               pkgs.openssl
-              self.packages.${pkgs.system}.pki
+              self.packages.${pkgs.system}.offline-pki
             ];
 
             # PKI user and autologin
@@ -60,15 +60,27 @@
         pkgs = import nixpkgs {
           inherit system;
         };
-        runtimeInputs = [
-          (pkgs.python3.withPackages
-            (python-pkgs: with python-pkgs;
-            [
-              click
-              cryptography
-              pkgs.yubikey-manager
-            ]))
-        ];
+        pyproject =
+          let
+            toml = pkgs.lib.importTOML ./pyproject.toml;
+          in
+          {
+            pname = toml.project.name;
+            version = toml.project.version;
+            build-system = pkgs.lib.map (p: python.pkgs.${p}) toml.build-system.requires;
+            dependencies = pkgs.lib.map (p: python.pkgs.${p}) toml.project.dependencies;
+            scripts = toml.project.scripts;
+          };
+        python = pkgs.python3.override {
+          self = python;
+          packageOverrides = pyfinal: pyprev: {
+            yubikey-manager = pkgs.yubikey-manager;
+            offline-pki-editable = pyfinal.mkPythonEditablePackage {
+              inherit (pyproject) pname version build-system dependencies scripts;
+              root = "$OFFLINE_PKI_ROOT/src";
+            };
+          };
+        };
       in
       {
         packages = (lib.optionalAttrs (system == "aarch64-linux") {
@@ -105,26 +117,22 @@
             in
             image.config.system.build.sdImage;
         }) // rec {
-          pki = pkgs.stdenvNoCC.mkDerivation {
-            name = "offline-pki";
+          offline-pki = pkgs.python3Packages.buildPythonApplication {
+            inherit (pyproject) pname version build-system dependencies;
+            pyproject = true;
             src = ./.;
             nativeBuildInputs = [
               pkgs.installShellFiles
-              pkgs.makeWrapper
             ];
-            buildInputs = runtimeInputs;
-            phases = [ "installPhase" ];
-            installPhase = ''
-              install -D ${./scripts/pki} $out/bin/pki
-              patchShebangs --build $out
 
-              installShellCompletion --cmd pki \
-                --bash <(_PKI_COMPLETE=bash_source "$out/bin/pki") \
-                --zsh  <(_PKI_COMPLETE=zsh_source  "$out/bin/pki") \
-                --fish <(_PKI_COMPLETE=fish_source "$out/bin/pki") \
+            postInstall = ''
+              installShellCompletion --cmd offline-pki \
+                --bash <(_OFFLINE_PKI_COMPLETE=bash_source "$out/bin/offline-pki") \
+                --zsh  <(_OFFLINE_PKI_COMPLETE=zsh_source  "$out/bin/offline-pki") \
+                --fish <(_OFFLINE_PKI_COMPLETE=fish_source "$out/bin/offline-pki") \
             '';
           };
-          default = pki;
+          default = offline-pki;
 
           # QEMU image for development (and only for that!)
           qemu =
@@ -158,12 +166,17 @@
         };
 
         # Development shell
-        devShells.default = pkgs.mkShell
-          {
-            name = "offline-pki";
-            nativeBuildInputs = [
-              pkgs.openssl
-            ] ++ runtimeInputs;
-          };
+        devShells.default = pkgs.mkShell {
+          name = "offline-pki";
+          nativeBuildInputs = [
+            pkgs.openssl
+            pkgs.yubikey-manager
+            (python.withPackages
+              (python-pkgs: with python-pkgs; [ offline-pki-editable ]))
+          ];
+          shellHook = ''
+            export OFFLINE_PKI_ROOT=$PWD
+          '';
+        };
       });
 }
