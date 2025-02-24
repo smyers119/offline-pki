@@ -36,6 +36,7 @@
             ];
 
             # PKI user and autologin
+            users.allowNoPasswordLogin = true;
             users.mutableUsers = false;
             users.users.pki = {
               isNormalUser = true;
@@ -48,7 +49,7 @@
             imports = [
               impermanence.nixosModules.impermanence
             ];
-            fileSystems."/" = {
+            fileSystems."/" = lib.mkForce {
               device = "none";
               fsType = "tmpfs";
               options = [ "defaults" "size=25%" "mode=755" ];
