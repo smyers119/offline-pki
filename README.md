@@ -41,7 +41,7 @@ nix build --system aarch64-linux .\#sdcard
 To flash it:
 
 ```shell
-zstdcat result/sd-image/nixos-sd-image-*-aarch64-linux.img.zst > /dev/sdc
+zstdcat result/sd-image/nixos-sd-image-*-aarch64-linux.img.zst | pv | sudo dd of=/dev/sdc
 ```
 
 You can get a serial console using the UART header. See [GPIO Pinout Header
