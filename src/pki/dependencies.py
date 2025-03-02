@@ -5,7 +5,7 @@ from ykman.piv import (
     sign_certificate_builder,
 )
 from yubikit.core import TRANSPORT
-from yubikit.core.smartcard import SmartCardConnection
+from yubikit.core.smartcard import SmartCardConnection, ApduError, SW
 from yubikit.management import ManagementSession, DeviceConfig, CAPABILITY
 from yubikit.piv import (
     PivSession,

@@ -104,8 +104,13 @@ def yubikey_info() -> None:
         logger.info(f"SN: {info.serial}")
         with device.open_connection(d.SmartCardConnection) as conn:
             piv = d.PivSession(conn)
-            data = piv.get_slot_metadata(d.SLOT.SIGNATURE)
             logger.info(f"Slot {d.SLOT.SIGNATURE}:")
+            try:
+                data = piv.get_slot_metadata(d.SLOT.SIGNATURE)
+            except d.ApduError as e:
+                if e.sw == d.SW.REFERENCE_DATA_NOT_FOUND:
+                    logger.info("  Empty")
+                    continue
             logger.info(f"  Private key type: {data.key_type}")
             cert = piv.get_certificate(d.SLOT.SIGNATURE)
             pkey = data.public_key
