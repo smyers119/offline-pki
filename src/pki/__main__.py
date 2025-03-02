@@ -24,7 +24,10 @@ class CustomFormatter(logging.Formatter):
         if relevant_frame is None:
             return super().formatException(self, exc_info)
 
-        return f" On line {relevant_frame.lineno}: {relevant_frame.line}"
+        relative_filename = Path(relevant_frame.filename).relative_to(
+            Path(__file__).parent
+        )
+        return f" At {relative_filename}:{relevant_frame.lineno}: {relevant_frame.line}"
 
 
 @click.group()
