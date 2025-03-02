@@ -102,6 +102,7 @@ def yubikey_info() -> None:
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
         logger.info(f"SN: {info.serial}")
+        logger.info(f"Version: {info.version}")
         with device.open_connection(d.SmartCardConnection) as conn:
             piv = d.PivSession(conn)
             logger.info(f"Slot {d.SLOT.SIGNATURE}:")
@@ -173,6 +174,7 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
         device, info = di
         logger.info(f"{nb: >2}: {device.fingerprint}")
         logger.info(f"SN: {info.serial}")
+        logger.info(f"Version: {info.version}")
         with device.open_connection(d.SmartCardConnection) as conn:
             mgt = d.ManagementSession(conn)
             logger.debug("Only enable PIV application")
