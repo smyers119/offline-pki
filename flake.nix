@@ -43,6 +43,12 @@
             };
             services.getty.autologinUser = "pki";
             environment.loginShellInit = "${resizeScript}/bin/resize";
+
+            # Lustrate the system at every boot
+            system.activationScripts.lustrate = ''
+              # Lustrate on next boot
+              touch /etc/NIXOS_LUSTRATE
+            '';
           };
       })
     // flake-utils.lib.eachDefaultSystem (system:
