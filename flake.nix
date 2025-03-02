@@ -159,6 +159,7 @@
         devShells.default = pkgs.mkShell {
           name = "offline-pki";
           nativeBuildInputs = [
+            pkgs.tio
             pkgs.openssl
             pkgs.yubikey-manager
             (python.withPackages
