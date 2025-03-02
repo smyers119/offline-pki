@@ -117,6 +117,7 @@ $ openssl req -noout -text -in server-csr.pem
 
 There are several limitations with this little PKI:
 
+- Yubikey 5.4.0 or more recent is needed (AES management key, ability to retrieve metadata)
 - not everything is configurable, notably the cryptography is hard-coded (NIST P-384 elliptic curve)
 - no CRL support (this is an offline PKI, while not impossible, this would be a pain)
 - random serial numbers (no state is kept, except the certificates on the Yubikeys)
