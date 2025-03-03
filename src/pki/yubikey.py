@@ -40,12 +40,13 @@ def validate_management_key(ctx, param, val):
             return val
         if type(val) is str:
             val = bytes.fromhex(val)
-        if len(val) == 32:
+        if len(val) in (16, 24, 32):
             return val
     except ValueError:
         pass
     raise click.BadParameter(
-        "Management key must be exactly 32 (64 hexadecimal digits) long."
+        "Management key must be exactly 16, 24, or 32-byte "
+        "(32, 48, or 64 hexadecimal digits) long."
     )
 
 
@@ -205,7 +206,15 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
             piv.reset()
             logger.debug("Set management key")
             piv.authenticate(DEFAULT_MANAGEMENT)
-            d.pivman_set_mgm_key(piv, new_management_key, d.MANAGEMENT_KEY_TYPE.AES256)
+            d.pivman_set_mgm_key(
+                piv,
+                new_management_key,
+                len(new_management_key) == 16
+                and d.MANAGEMENT_KEY_TYPE.AES128
+                or len(new_management_key) == 24
+                and d.MANAGEMENT_KEY_TYPE.TDES
+                or d.MANAGEMENT_KEY_TYPE.AES256,
+            )
             logger.debug("Set PIN and PUK code")
             piv.change_puk(DEFAULT_PUK, new_puk)
             d.pivman_change_pin(piv, DEFAULT_PIN, new_pin)
