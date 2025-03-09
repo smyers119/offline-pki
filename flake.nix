@@ -80,13 +80,15 @@
       in
       {
         packages = (lib.optionalAttrs (system == "aarch64-linux") {
-          # sdcard for Libre Computer Amlogic card
+          # sdcard for Libre Computer Amlogic card. This may not work with other
+          # devices, notably Raspberry Pi.
           sdcard =
             let
               image = lib.nixosSystem {
                 inherit system;
                 modules = [
                   "${nixpkgs}/nixos/modules/profiles/minimal.nix"
+                  "${nixpkgs}/nixos/modules/profiles/perlless.nix"
                   "${nixpkgs}/nixos/modules/installer/sd-card/sd-image.nix"
                   ({ config, ... }: {
                     # This is a reduced version of sd-image-aarch64
