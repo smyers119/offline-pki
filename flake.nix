@@ -88,7 +88,6 @@
                 inherit system;
                 modules = [
                   "${nixpkgs}/nixos/modules/profiles/minimal.nix"
-                  "${nixpkgs}/nixos/modules/profiles/perlless.nix"
                   "${nixpkgs}/nixos/modules/installer/sd-card/sd-image.nix"
                   ({ config, ... }: {
                     # This is a reduced version of sd-image-aarch64
