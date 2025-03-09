@@ -106,6 +106,11 @@
                     boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
                     # No need for firmwares (enabled by sd-image.nix)
                     hardware.enableRedistributableFirmware = lib.mkForce false;
+                    # Do not embed nixpkgs to make the system smaller
+                    nixpkgs.flake = {
+                      setFlakeRegistry = false;
+                      setNixPath = false;
+                    };
                   })
                   self.nixosModules.default
                 ];
