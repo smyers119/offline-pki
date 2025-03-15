@@ -5,9 +5,6 @@ run from an ARM64 SBC, like the [Sweet Potato AML-S905X-CC-V2][potato].
 
 [potato]: https://libre.computer/products/aml-s905x-cc-v2/
 
-> [!CAUTION]
-> This is a work in progress. Do not use yet!
-
 ## Installation
 
 ### With Nix
