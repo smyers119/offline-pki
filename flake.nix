@@ -119,7 +119,7 @@
             in
             image.config.system.build.sdImage;
         }) // rec {
-          offline-pki = pkgs.python3Packages.buildPythonApplication {
+          offline-pki = python.pkgs.buildPythonApplication {
             inherit (pyproject) pname version build-system dependencies;
             pyproject = true;
             src = ./.;
