@@ -152,7 +152,7 @@
                         "-serial mon:stdio"
                         "-usb"
                       ] ++ (
-                        # Yubikey passthrough
+                        # YubiKey passthrough
                         lib.map
                           (id: "-device usb-host,vendorid=0x1050,productid=0x040${toString id}")
                           (lib.range 1 8)

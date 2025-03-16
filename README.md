@@ -54,13 +54,13 @@ The default speed is 115200. A good small serial tool is `tio`.
 
 ### CA creation
 
-You need three Yubikeys. Be sure to label them correctly.
+You need three YubiKeys. Be sure to label them correctly.
 
  - Root 1
  - Root 2
  - Intermediate
  
-For each Yubikey, run `offline-pki yubikey reset` to wipe them and configure PIN code,
+For each YubiKey, run `offline-pki yubikey reset` to wipe them and configure PIN code,
 PUK code, and management key. The same management key must be used for all root
 keys. You may use more root keys as backups, as it is not possible to duplicate
 a root key.
@@ -114,12 +114,12 @@ $ openssl req -noout -text -in server-csr.pem
 
 There are several limitations with this little PKI:
 
-- Yubikey 5.4.2 or more recent is needed (AES management key requires 5.4.2,
+- YubiKey 5.4.2 or more recent is needed (AES management key requires 5.4.2,
   ability to retrieve metadata requires 5.3.0, ECC-P384 algorithm requires
   5.0.0)
 - not everything is configurable, notably the cryptography is hard-coded (NIST P-384 elliptic curve)
 - no CRL support (this is an offline PKI, while not impossible, this would be a pain)
-- random serial numbers (no state is kept, except the certificates on the Yubikeys)
+- random serial numbers (no state is kept, except the certificates on the YubiKeys)
 
 ## Development
 

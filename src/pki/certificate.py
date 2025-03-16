@@ -80,7 +80,7 @@ def certificate_root(management_key: bytes, subject_name: str, days: int) -> Non
                 d.PIN_POLICY.ONCE,
                 d.TOUCH_POLICY.NEVER,
             )
-        if not click.confirm("Copy root certificate to another Yubikey?"):
+        if not click.confirm("Copy root certificate to another YubiKey?"):
             break
 
 
@@ -126,7 +126,7 @@ def certificate_intermediate(
         piv = d.PivSession(conn)
         root = piv.get_certificate(d.SLOT.SIGNATURE)
         if root.issuer.rfc4514_string() != root.subject.rfc4514_string():
-            raise RuntimeError("The inserted key does not look like a root Yubikey!")
+            raise RuntimeError("The inserted key does not look like a root YubiKey!")
         issuer = root.subject
         subject = d.x509.Name.from_rfc4514_string(subject_name)
         missing = [
@@ -251,7 +251,7 @@ def certificate_sign(
             == intermediate.subject.rfc4514_string()
         ):
             raise RuntimeError(
-                "The inserted key does not look like an intermediate Yubikey!"
+                "The inserted key does not look like an intermediate YubiKey!"
             )
 
         logger.debug("build certificate")

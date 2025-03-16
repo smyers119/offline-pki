@@ -50,10 +50,10 @@ def validate_management_key(ctx, param, val):
 
 
 def yubikey_one(yk: YUBIKEY):
-    """Get exactly one Yubikey."""
+    """Get exactly one YubiKey."""
     from . import dependencies as d
 
-    click.pause(f'Plug Yubikey "{yk}"...')
+    click.pause(f'Plug YubiKey "{yk}"...')
     devices = list(d.list_all_devices())
     for nb, di in enumerate(devices):
         device, info = di
@@ -62,8 +62,8 @@ def yubikey_one(yk: YUBIKEY):
         if len(devices) == 1:
             return device
     if len(devices) == 0:
-        raise RuntimeError("No Yubikey found!")
-    raise RuntimeError("Too many Yubikeys found!")
+        raise RuntimeError("No YubiKey found!")
+    raise RuntimeError("Too many YubiKeys found!")
 
 
 def click_pin(yk: str):
@@ -90,12 +90,12 @@ def click_management_key(yk: str):
 
 @click.group()
 def yubikey() -> None:
-    """Yubikey management."""
+    """YubiKey management."""
 
 
 @yubikey.command("info")
 def yubikey_info() -> None:
-    """Display information about the inserted Yubikeys."""
+    """Display information about the inserted YubiKeys."""
     from . import dependencies as d
 
     for nb, di in enumerate(d.list_all_devices()):
@@ -136,7 +136,7 @@ def yubikey_info() -> None:
 
 @yubikey.command("reset")
 @click.confirmation_option(
-    prompt="This will reset the connected Yubikey. Are you sure?"
+    prompt="This will reset the connected YubiKey. Are you sure?"
 )
 @click.option(
     "--new-pin",
@@ -165,7 +165,7 @@ def yubikey_info() -> None:
     callback=validate_management_key,
 )
 def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None:
-    """Reset the inserted Yubikeys."""
+    """Reset the inserted YubiKeys."""
     from . import dependencies as d
 
     found = False
@@ -184,7 +184,7 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
                 d.TRANSPORT.USB: d.CAPABILITY.PIV,
             }
             mgt.write_device_config(config, True, None, None)
-        logger.debug("Wait a bit for Yubikey to reboot")
+        logger.debug("Wait a bit for YubiKey to reboot")
         for retry in reversed(range(5)):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="Failed opening device")
@@ -197,7 +197,7 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
                 else:
                     if retry > 0:
                         continue
-                    raise RuntimeError("no Yubikey found")
+                    raise RuntimeError("no YubiKey found")
                 break
         with device.open_connection(d.SmartCardConnection) as conn:
             piv = d.PivSession(conn)
@@ -209,6 +209,6 @@ def yubikey_reset(new_pin: str, new_puk: str, new_management_key: bytes) -> None
             logger.debug("Set PIN and PUK code")
             piv.change_puk(DEFAULT_PUK, new_puk)
             d.pivman_change_pin(piv, DEFAULT_PIN, new_pin)
-        logger.info("Yubikey reset successful!")
+        logger.info("YubiKey reset successful!")
     if not found:
-        raise RuntimeError("No Yubikey found!")
+        raise RuntimeError("No YubiKey found!")

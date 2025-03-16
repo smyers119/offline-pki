@@ -33,10 +33,10 @@ class CustomFormatter(logging.Formatter):
 @click.group()
 @click.option("--debug", is_flag=True, default=False)
 def cli(debug: bool) -> int:
-    """Simple offline PKI using Yubikeys as HSM.
+    """Simple offline PKI using YubiKeys as HSM.
 
     This program is a very barebone PKI for offline certificates. It requires at
-    least three Yubikeys as HSM to store the root certificate (on "ROOT1" and
+    least three YubiKeys as HSM to store the root certificate (on "ROOT1" and
     "ROOT2", as a backup) and the intermediate certificate (on "INTERMEDIATE").
 
     The features are quite limited as it only provides root CA and intermediate

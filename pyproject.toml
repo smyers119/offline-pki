@@ -1,7 +1,7 @@
 [project]
 name = "offline-pki"
 version = "0.1.0"
-description = "Offline PKI using Yubikeys as HSM"
+description = "Offline PKI using YubiKeys as HSM"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
