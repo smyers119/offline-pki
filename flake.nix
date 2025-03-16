@@ -80,44 +80,58 @@
       in
       {
         packages = (lib.optionalAttrs (system == "aarch64-linux") {
-          # sdcard for Libre Computer Amlogic card. This may not work with other
-          # devices, notably Raspberry Pi.
-          sdcard =
-            let
-              image = lib.nixosSystem {
-                inherit system;
-                modules = [
-                  "${nixpkgs}/nixos/modules/profiles/minimal.nix"
-                  "${nixpkgs}/nixos/modules/installer/sd-card/sd-image.nix"
-                  ({ config, ... }: {
-                    # This is a reduced version of sd-image-aarch64
-                    boot.loader.grub.enable = false;
-                    boot.loader.generic-extlinux-compatible.enable = true;
-                    boot.consoleLogLevel = lib.mkDefault 7;
-                    sdImage = {
-                      populateFirmwareCommands = "";
-                      populateRootCommands = ''
-                        mkdir -p ./files/boot
-                        ${config.boot.loader.generic-extlinux-compatible.populateCmd} \
-                          -c ${config.system.build.toplevel} \
-                          -d ./files/boot
-                      '';
-                    };
-                    # For Amlogic boards, the console is on ttyAML0.
-                    boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
-                    # No need for firmwares (enabled by sd-image.nix)
-                    hardware.enableRedistributableFirmware = lib.mkForce false;
-                    # Do not embed nixpkgs to make the system smaller
-                    nixpkgs.flake = {
-                      setFlakeRegistry = false;
-                      setNixPath = false;
-                    };
-                  })
-                  self.nixosModules.default
-                ];
-              };
-            in
-            image.config.system.build.sdImage;
+          sdcard = {
+            # sdcard for Libre Computer Amlogic card. This may not work with other
+            # devices, notably Raspberry Pi.
+            potato =
+              let
+                image = lib.nixosSystem {
+                  inherit system;
+                  modules = [
+                    "${nixpkgs}/nixos/modules/profiles/minimal.nix"
+                    "${nixpkgs}/nixos/modules/installer/sd-card/sd-image.nix"
+                    ({ config, ... }: {
+                      # This is a reduced version of sd-image-aarch64
+                      boot.loader.grub.enable = false;
+                      boot.loader.generic-extlinux-compatible.enable = true;
+                      boot.consoleLogLevel = lib.mkDefault 7;
+                      sdImage = {
+                        populateFirmwareCommands = "";
+                        populateRootCommands = ''
+                          mkdir -p ./files/boot
+                          ${config.boot.loader.generic-extlinux-compatible.populateCmd} \
+                            -c ${config.system.build.toplevel} \
+                            -d ./files/boot
+                        '';
+                      };
+                      # For Amlogic boards, the console is on ttyAML0.
+                      boot.kernelParams = [ "console=ttyAML0,115200n8" "console=ttyS0,115200n8" "console=tty0" ];
+                      # No need for firmwares (enabled by sd-image.nix)
+                      hardware.enableRedistributableFirmware = lib.mkForce false;
+                      # Do not embed nixpkgs to make the system smaller
+                      nixpkgs.flake = {
+                        setFlakeRegistry = false;
+                        setNixPath = false;
+                      };
+                    })
+                    self.nixosModules.default
+                  ];
+                };
+              in
+              image.config.system.build.sdImage;
+            # This one is more likely to work with other SBCs.
+            generic =
+              let
+                image = lib.nixosSystem {
+                  inherit system;
+                  modules = [
+                    "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+                    self.nixosModules.default
+                  ];
+                };
+              in
+              image.config.system.build.sdImage;
+          };
         }) // rec {
           offline-pki = python.pkgs.buildPythonApplication {
             inherit (pyproject) pname version build-system dependencies;

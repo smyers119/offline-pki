@@ -29,10 +29,11 @@ You may need `libpcsclite-dev` package.
 
 ### Image creation
 
-To build the SD card image (targeted for the Sweet Potato):
+To build the SD card image (the first variant is for the Sweet Potato):
 
 ```shell
-nix build --system aarch64-linux .\#sdcard
+nix build --system aarch64-linux .\#sdcard.potato
+nix build --system aarch64-linux .\#sdcard.generic
 ```
 
 To flash it:
