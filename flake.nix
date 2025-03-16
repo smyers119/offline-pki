@@ -179,6 +179,7 @@
           ];
           shellHook = ''
             export OFFLINE_PKI_ROOT=$PWD
+            source <(_OFFLINE_PKI_COMPLETE=bash_source offline-pki)
           '';
         };
       });
