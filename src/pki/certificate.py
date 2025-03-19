@@ -18,13 +18,7 @@ warnings.filterwarnings(
 
 
 def validate_constraint(value: str) -> GeneralName:
-    """Parse a constraint string and return the appropriate GeneralName object.
-    Examples:
-
-    - dns:example.com
-    - ip:192.168.1.0/24
-    - email:example.com
-    """
+    """Parse a constraint string and return the appropriate GeneralName object."""
     from . import dependencies as d
 
     if not value or ":" not in value:
@@ -41,6 +35,13 @@ def validate_constraint(value: str) -> GeneralName:
             raise click.BadParameter(f"Invalid IP address/network: {constraint}")
     if prefix == "email":
         return d.x509.general_name.RFC822Name(constraint)
+    if prefix == "dn":
+        try:
+            return d.x509.general_name.DirectoryName(
+                d.x509.Name.from_rfc4514_string(constraint)
+            )
+        except ValueError:
+            raise click.BadParameter(f"Invalid DN: {constraint}")
     raise click.BadParameter(f"Unsupported constraint type: {prefix}")
 
 
@@ -99,6 +100,7 @@ def certificate_root(
     - DNS:example.com
     - EMAIL:example.com
     - IP:203.0.113.0/24
+    - DN:"C=FR,O=Example Corp"
     """
     from . import dependencies as d
 
@@ -143,6 +145,10 @@ def certificate_root(
             critical=True,
         )
     cert = cert_builder.sign(private_key, d.hashes.SHA384())
+    logger.debug(
+        "Certificate: %s",
+        cert.public_bytes(encoding=d.serialization.Encoding.PEM).decode("utf-8"),
+    )
     while True:
         with yubikey_one(YUBIKEY.ROOT).open_connection(d.SmartCardConnection) as conn:
             piv = d.PivSession(conn)
