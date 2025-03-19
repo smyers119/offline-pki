@@ -3,8 +3,10 @@ import logging
 import click
 import warnings
 import typing
+import ipaddress
 from datetime import datetime, timedelta, timezone
 from cryptography.utils import CryptographyDeprecationWarning
+from cryptography.x509.general_name import GeneralName
 
 from .yubikey import click_management_key, click_pin, yubikey_one, YUBIKEY
 
@@ -13,6 +15,45 @@ logger = logging.getLogger("pki-certificate")
 warnings.filterwarnings(
     "ignore", category=CryptographyDeprecationWarning, message=".*TripleDES.*"
 )
+
+
+def validate_constraint(value: str) -> GeneralName:
+    """Parse a constraint string and return the appropriate GeneralName object.
+    Examples:
+
+    - dns:example.com
+    - ip:192.168.1.0/24
+    - email:example.com
+    """
+    from . import dependencies as d
+
+    if not value or ":" not in value:
+        raise click.BadParameter("Invalid constraint, use prefix:value")
+    prefix, constraint = value.split(":", 1)
+    prefix = prefix.lower()
+    if prefix == "dns":
+        return d.x509.general_name.DNSName(constraint)
+    if prefix == "ip":
+        try:
+            network = ipaddress.ip_network(constraint, strict=False)
+            return d.x509.general_name.IPAddress(network)
+        except ValueError:
+            raise click.BadParameter(f"Invalid IP address/network: {constraint}")
+    if prefix == "email":
+        return d.x509.general_name.RFC822Name(constraint)
+    raise click.BadParameter(f"Unsupported constraint type: {prefix}")
+
+
+def validate_constraints(ctx, param, values) -> typing.Optional[list[GeneralName]]:
+    """Parse constraint strings and return GeneralName objects."""
+    if not values:
+        return None
+
+    result = []
+    for value in values:
+        result.append(validate_constraint(value))
+
+    return result
 
 
 @click.group()
@@ -26,20 +67,46 @@ def certificate() -> None:
     "--subject-name", default="CN=Root CA", help="Subject name", type=click.STRING
 )
 @click.option(
+    "--permitted",
+    multiple=True,
+    default=[],
+    help="Permitted value for name constraints",
+    callback=validate_constraints,
+)
+@click.option(
+    "--excluded",
+    multiple=True,
+    default=[],
+    help="Excluded value for name constraints",
+    callback=validate_constraints,
+)
+@click.option(
     "--days",
     default=365 * 20,
     help="Root certificate validity in days",
     type=click.IntRange(min=1),
 )
-def certificate_root(management_key: bytes, subject_name: str, days: int) -> None:
-    """Initialize a new root certificate."""
+def certificate_root(
+    management_key: bytes,
+    subject_name: str,
+    permitted: typing.Optional[list[GeneralName]],
+    excluded: typing.Optional[list[GeneralName]],
+    days: int,
+) -> None:
+    """Initialize a new root certificate.
+
+    When specifying constraints, the format is either:
+    - DNS:example.com
+    - EMAIL:example.com
+    - IP:203.0.113.0/24
+    """
     from . import dependencies as d
 
     logger.debug("Generate a new private key")
     private_key = d.ec.generate_private_key(d.ec.SECP384R1())
     subject = d.x509.Name.from_rfc4514_string(subject_name)
     logger.debug("Generate a new certificate")
-    cert = (
+    cert_builder = (
         (
             d.x509.CertificateBuilder()
             .subject_name(subject)
@@ -67,8 +134,15 @@ def certificate_root(management_key: bytes, subject_name: str, days: int) -> Non
             ),
             critical=True,
         )
-        .sign(private_key, d.hashes.SHA384())
     )
+    if permitted or excluded:
+        cert_builder = cert_builder.add_extension(
+            d.x509.NameConstraints(
+                permitted_subtrees=permitted or None, excluded_subtrees=excluded or None
+            ),
+            critical=True,
+        )
+    cert = cert_builder.sign(private_key, d.hashes.SHA384())
     while True:
         with yubikey_one(YUBIKEY.ROOT).open_connection(d.SmartCardConnection) as conn:
             piv = d.PivSession(conn)

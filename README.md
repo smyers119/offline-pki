@@ -82,11 +82,23 @@ $ offline-pki certificate root --subject-name "CN=Root CA,O=Your Organization,OU
 $ offline-pki certificate intermediate
 ```
 
+It is also possible to add [name constraints][] to the root certificate to restrict its use.
+
+```console
+$ offline-pki certificate root \
+>    --permitted dns:example.com \
+>    --excluded dns:www.example.com \
+>    --permitted ip:203.0.113.0/24 \
+>    --permitted email:@example.com
+```
+
 You can check the result with `offline-pki yubikey info`.
 
 You can do several intermediate CA, one per usage. There is no backup
 intermediate as if it is destroyed or lost, you can just generate a new one
 (clients have to trust the root certificate, not the intermediate ones).
+
+[name constraints]: https://www.sysadmins.lv/blog-en/x509-name-constraints-certificate-extension-all-you-should-know.aspx
 
 ### CSR signature
 
