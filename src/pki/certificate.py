@@ -11,7 +11,7 @@ from cryptography.x509.general_name import GeneralName
 from .yubikey import click_management_key, click_pin, yubikey_one, YUBIKEY
 
 
-logger = logging.getLogger("pki-certificate")
+logger = logging.getLogger("offline-pki.certificate")
 warnings.filterwarnings(
     "ignore", category=CryptographyDeprecationWarning, message=".*TripleDES.*"
 )

@@ -11,7 +11,7 @@ DEFAULT_PIN = "123456"
 DEFAULT_PUK = "12345678"
 DEFAULT_MANAGEMENT = bytes.fromhex("010203040506070801020304050607080102030405060708")
 
-logger = logging.getLogger("pki-yubikey")
+logger = logging.getLogger("offline-pki.yubikey")
 
 
 @unique
