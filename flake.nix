@@ -11,9 +11,8 @@
       (system: {
         nixosModules.default = { pkgs, ... }:
           let
-            resizeScript = pkgs.writeShellScriptBin "resize" ''
+            shellInitScript = pkgs.writeShellScriptBin "shell-init" ''
               # Shell version of xterm's resize tool.
-
               if [ -e /dev/tty ]; then
                 old=$(stty -g)
                 stty raw -echo min 0 time 5
@@ -22,6 +21,12 @@
                 stty "$old"
                 [ -z "$cols" ] || [ -z "$rows" ] || stty cols "$cols" rows "$rows"
               fi
+
+              # Set date/time
+              echo "Current date and time: $(date +"%Y-%m-%d %H:%M:%S")"
+              echo -n "New date/time (YYYY-MM-DD HH:MM:SS): "
+              read datetime
+              [ -z "$datetime" ] || doas date -s "$datetime"
             '';
           in
           {
@@ -42,7 +47,13 @@
               description = "PKI user";
             };
             services.getty.autologinUser = "pki";
-            environment.loginShellInit = "${resizeScript}/bin/resize";
+            environment.loginShellInit = "${shellInitScript}/bin/shell-init";
+            security.doas = {
+              enable = true;
+              extraRules = [
+                { users = [ "pki" ]; cmd = "date"; noPass = true; }
+              ];
+            };
 
             # Lustrate the system at every boot
             system.activationScripts.lustrate = ''
