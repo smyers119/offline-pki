@@ -376,3 +376,105 @@ def certificate_sign(
                 "ascii"
             )
         )
+
+@certificate.group()
+
+def root() -> None:
+    """Certificate Root Management."""
+
+@root.command("sign")
+@click_pin(YUBIKEY.ROOT)
+@click.option(
+    "--csr-file", help="CSR file to sign", type=click.File("rt"), default=sys.stdin
+)
+@click.option(
+    "--out-file",
+    help="Output file for signed certificate",
+    type=click.File("wt"),
+    default=sys.stdout,
+)
+@click.option(
+    "--days",
+    default=365,
+    help="Certificate validity in days",
+    type=click.IntRange(min=1),
+)
+def root_sign(
+        pin: str,
+        csr_file: typing.TextIO,
+        out_file: typing.TextIO,
+        days: int,
+) -> None:
+    """Sign a certificate request with the root certificate."""
+    from . import dependencies as d
+
+    logger.debug("Load CSR file and check signature")
+    csr = d.x509.load_pem_x509_csr(csr_file.read().encode("ascii"))
+    public_key = csr.public_key()
+
+    # Verify CSR Signature
+    if (
+            isinstance(public_key, d.rsa.RSAPublicKey)
+            and csr.signature_hash_algorithm is not None
+    ):
+        public_key.verify(
+            csr.signature,
+            csr.tbs_certrequest_bytes,
+            d.padding.PKCS1v15(),
+            csr.signature_hash_algorithm,
+        )
+    elif isinstance(public_key, d.ec.EllipticCurvePublicKey):
+        if csr.signature_hash_algorithm is None:
+            raise ValueError("No hash algorithm in CSR")
+        public_key.verify(
+            csr.signature,
+            csr.tbs_certrequest_bytes,
+            d.ec.ECDSA(csr.signature_hash_algorithm),
+        )
+    else:
+        raise ValueError(f"Unsupported public key {public_key}")
+
+    with yubikey_one(YUBIKEY.ROOT).open_connection(d.SmartCardConnection) as conn:
+        piv = d.PivSession(conn)
+        root_cert = piv.get_certificate(d.SLOT.SIGNATURE)
+
+        if root_cert.issuer.rfc4514_string() != root_cert.subject.rfc4514_string():
+            raise RuntimeError("The inserted key does not look like a root YubiKey!")
+
+        logger.debug("Building certificate")
+        issuer = root_cert.subject
+        subject = csr.subject
+
+        cert = (
+            d.x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(public_key)
+            .serial_number(d.x509.random_serial_number())
+            .not_valid_before(datetime.now(timezone.utc))
+            .not_valid_after(datetime.now(timezone.utc) + timedelta(days=days))
+        )
+
+        # Copy CSR Extensions
+        for extension in csr.extensions:
+            logger.debug(f"Add extension {extension.value}")
+            cert = cert.add_extension(extension.value, extension.critical)
+
+        click.confirm("Sign this certificate with the root CA?", abort=True)
+
+        piv.verify_pin(pin)
+        signed_cert = d.sign_certificate_builder(
+            piv,
+            slot=d.SLOT.SIGNATURE,
+            key_type=d.KEY_TYPE.ECCP384,
+            builder=cert,
+            hash_algorithm=d.hashes.SHA384,
+        )
+
+        out_file.write(
+            signed_cert.public_bytes(encoding=d.serialization.Encoding.PEM).decode(
+                "ascii"
+            )
+        )
+
+    logger.info(f"Signed certificate saved to {out_file.name}")
